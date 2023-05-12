@@ -1,0 +1,61 @@
+module cuda_kernel
+contains
+   attributes(global) subroutine vadd(n, c, a, b)
+   implicit none
+   integer, value :: n
+   real, dimension(n), device :: a, b, c
+   integer :: i
+   i = (blockIdx%x-1)*blockDim%x + threadIdx%x
+   print *,i
+   if (i < n + 1) c(i) = a(i) + b(i)
+end subroutine vadd
+end module cuda_kernel
+
+program vecadd
+   use cudafor
+   use cuda_kernel
+   implicit none
+   integer, parameter :: N = 16
+   real, dimension(N) :: h_a, h_b, h_c
+   real, dimension(:), allocatable, device :: d_a, d_b, d_c
+   integer :: i
+   integer :: stat
+
+   type(dim3) :: grid_size, block_size
+
+   grid_size  = dim3(1, 1, 1)
+   block_size = dim3(N, 1, 1)
+
+   h_a = 1.0e0
+   h_b = 2.0e0
+
+   stat = cudaMalloc(d_a, N)
+   if (stat /= cudaSuccess) print *, trim(cudaGetErrorString(stat))
+   stat = cudaMalloc(d_b, N)
+   if (stat /= cudaSuccess) print *, trim(cudaGetErrorString(stat))
+   stat = cudaMalloc(d_c, N)
+   if (stat /= cudaSuccess) print *, trim(cudaGetErrorString(stat))
+
+   stat = cudaMemcpy(d_a, h_a, N, cudaMemcpyHostToDevice)
+   if (stat /= cudaSuccess) print *, trim(cudaGetErrorString(stat))
+   stat = cudaMemcpy(d_b, h_b, N, cudaMemcpyHostToDevice)
+   if (stat /= cudaSuccess) print *, trim(cudaGetErrorString(stat))
+
+   call vadd<<<grid_size, block_size>>>(N, d_c, d_a, d_b)
+   print *, trim(cudaGetErrorString(cudaGetLastError()))
+
+   stat = cudaMemcpy(h_c, d_c, N, cudaMemcpyDeviceToHost)
+   if (stat /= cudaSuccess) print *, trim(cudaGetErrorString(stat))
+
+   do i = 1, N
+      print *, 'i=', i, ',c(', i, ')=', h_c(i)
+   enddo
+
+   stat = cudaFree(d_a)
+   if (stat /= cudaSuccess) print *, trim(cudaGetErrorString(stat))
+   stat = cudaFree(d_b)
+   if (stat /= cudaSuccess) print *, trim(cudaGetErrorString(stat))
+   stat = cudaFree(d_c)
+   if (stat /= cudaSuccess) print *, trim(cudaGetErrorString(stat))
+
+end program vecadd
