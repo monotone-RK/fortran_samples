@@ -1,0 +1,29 @@
+program testsort
+   use cub
+   implicit none
+   integer, allocatable :: cpuData(:)
+   integer, allocatable, device :: i_gpuData(:)
+   integer, allocatable, device :: o_gpuData(:)
+   real :: x
+   integer :: N = 10
+   integer :: i
+!Allocate CPU and GPU arrays
+   allocate(cpuData(N), i_gpuData(N), o_gpuData(N))
+!Fill the host array with random data
+   do i = 1, N
+      call random_number(x)
+      cpuData(i) = int(x * 100)
+   end do
+! Print unsorted data
+   print *, 'Before:', cpuData
+! Send data to GPU
+   i_gpuData = cpuData
+!Sort the data
+   call cubsort(i_gpuData, o_gpuData, N)
+!Copy the result back
+   cpuData = o_gpuData
+! Print sorted data
+   print *, 'After:', cpuData
+!Deallocate arrays
+   deallocate(cpuData, i_gpuData, o_gpuData)
+end program testsort
